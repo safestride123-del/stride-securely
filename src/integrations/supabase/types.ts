@@ -14,7 +14,186 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      career_resources: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string | null
+          details: string | null
+          eligibility: string | null
+          icon: string | null
+          id: string
+          link: string | null
+          title: string
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          description?: string | null
+          details?: string | null
+          eligibility?: string | null
+          icon?: string | null
+          id?: string
+          link?: string | null
+          title: string
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          details?: string | null
+          eligibility?: string | null
+          icon?: string | null
+          id?: string
+          link?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      danger_reports: {
+        Row: {
+          created_at: string | null
+          danger_type: string
+          description: string | null
+          id: string
+          is_anonymous: boolean | null
+          location: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          danger_type: string
+          description?: string | null
+          id?: string
+          is_anonymous?: boolean | null
+          location: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          danger_type?: string
+          description?: string | null
+          id?: string
+          is_anonymous?: boolean | null
+          location?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      emergency_contacts: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          phone: string
+          relation: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          phone: string
+          relation?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          phone?: string
+          relation?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          blood_group: string | null
+          created_at: string | null
+          dark_mode: boolean | null
+          date_of_birth: string | null
+          full_name: string | null
+          gender: string | null
+          id: string
+          location_enabled: boolean | null
+          notification_enabled: boolean | null
+          phone: string | null
+          sos_custom_message: string | null
+          updated_at: string | null
+          voice_recording_enabled: boolean | null
+        }
+        Insert: {
+          blood_group?: string | null
+          created_at?: string | null
+          dark_mode?: boolean | null
+          date_of_birth?: string | null
+          full_name?: string | null
+          gender?: string | null
+          id: string
+          location_enabled?: boolean | null
+          notification_enabled?: boolean | null
+          phone?: string | null
+          sos_custom_message?: string | null
+          updated_at?: string | null
+          voice_recording_enabled?: boolean | null
+        }
+        Update: {
+          blood_group?: string | null
+          created_at?: string | null
+          dark_mode?: boolean | null
+          date_of_birth?: string | null
+          full_name?: string | null
+          gender?: string | null
+          id?: string
+          location_enabled?: boolean | null
+          notification_enabled?: boolean | null
+          phone?: string | null
+          sos_custom_message?: string | null
+          updated_at?: string | null
+          voice_recording_enabled?: boolean | null
+        }
+        Relationships: []
+      }
+      user_progress: {
+        Row: {
+          badges: string[] | null
+          completed_lessons: string[] | null
+          created_at: string | null
+          id: string
+          last_activity: string | null
+          quiz_scores: Json | null
+          streak: number | null
+          updated_at: string | null
+          user_id: string
+          xp: number | null
+        }
+        Insert: {
+          badges?: string[] | null
+          completed_lessons?: string[] | null
+          created_at?: string | null
+          id?: string
+          last_activity?: string | null
+          quiz_scores?: Json | null
+          streak?: number | null
+          updated_at?: string | null
+          user_id: string
+          xp?: number | null
+        }
+        Update: {
+          badges?: string[] | null
+          completed_lessons?: string[] | null
+          created_at?: string | null
+          id?: string
+          last_activity?: string | null
+          quiz_scores?: Json | null
+          streak?: number | null
+          updated_at?: string | null
+          user_id?: string
+          xp?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

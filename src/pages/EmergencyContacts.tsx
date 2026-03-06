@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Plus, Trash2, Phone, Save } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Save, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface Contact {
+  id?: string;
   name: string;
   phone: string;
   relation: string;
@@ -12,19 +15,35 @@ interface Contact {
 
 const EmergencyContacts = () => {
   const navigate = useNavigate();
-  const [contacts, setContacts] = useState<Contact[]>(() => {
-    const saved = localStorage.getItem("safestride-contacts");
-    return saved ? JSON.parse(saved) : [
-      { name: "", phone: "", relation: "" },
-      { name: "", phone: "", relation: "" },
-      { name: "", phone: "", relation: "" },
-    ];
-  });
+  const { user } = useAuth();
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchContacts = async () => {
+      const { data } = await supabase
+        .from("emergency_contacts")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at");
+      if (data && data.length > 0) {
+        setContacts(data.map((c) => ({ id: c.id, name: c.name, phone: c.phone, relation: c.relation || "" })));
+      } else {
+        setContacts([
+          { name: "", phone: "", relation: "" },
+          { name: "", phone: "", relation: "" },
+          { name: "", phone: "", relation: "" },
+        ]);
+      }
+      setLoading(false);
+    };
+    fetchContacts();
+  }, [user]);
 
   const updateContact = (index: number, field: keyof Contact, value: string) => {
-    setContacts((prev) =>
-      prev.map((c, i) => (i === index ? { ...c, [field]: value } : c))
-    );
+    setContacts((prev) => prev.map((c, i) => (i === index ? { ...c, [field]: value } : c)));
   };
 
   const addContact = () => {
@@ -37,12 +56,33 @@ const EmergencyContacts = () => {
     setContacts(contacts.filter((_, i) => i !== index));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!user) return toast.error("Please log in first");
     const valid = contacts.every((c) => c.name && c.phone);
     if (!valid) return toast.error("Please fill all contact details");
-    localStorage.setItem("safestride-contacts", JSON.stringify(contacts));
-    toast.success("Emergency contacts saved!");
+
+    setSaving(true);
+    // Delete existing then re-insert
+    await supabase.from("emergency_contacts").delete().eq("user_id", user.id);
+    const { error } = await supabase.from("emergency_contacts").insert(
+      contacts.map((c) => ({ user_id: user.id, name: c.name, phone: c.phone, relation: c.relation }))
+    );
+
+    if (error) {
+      toast.error("Failed to save contacts");
+    } else {
+      toast.success("Emergency contacts saved!");
+    }
+    setSaving(false);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -70,41 +110,24 @@ const EmergencyContacts = () => {
               </button>
             )}
           </div>
-          <input
-            placeholder="Name"
-            value={contact.name}
-            onChange={(e) => updateContact(i, "name", e.target.value)}
-            className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-          />
-          <input
-            placeholder="Phone"
-            type="tel"
-            value={contact.phone}
-            onChange={(e) => updateContact(i, "phone", e.target.value)}
-            className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-          />
-          <input
-            placeholder="Relation (e.g., Mother, Friend)"
-            value={contact.relation}
-            onChange={(e) => updateContact(i, "relation", e.target.value)}
-            className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-          />
+          <input placeholder="Name" value={contact.name} onChange={(e) => updateContact(i, "name", e.target.value)}
+            className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50" />
+          <input placeholder="Phone" type="tel" value={contact.phone} onChange={(e) => updateContact(i, "phone", e.target.value)}
+            className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50" />
+          <input placeholder="Relation (e.g., Mother, Friend)" value={contact.relation} onChange={(e) => updateContact(i, "relation", e.target.value)}
+            className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50" />
         </motion.div>
       ))}
 
-      <button
-        onClick={addContact}
-        className="w-full border-2 border-dashed border-border rounded-2xl py-3 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-      >
+      <button onClick={addContact}
+        className="w-full border-2 border-dashed border-border rounded-2xl py-3 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
         <Plus size={18} /> Add Contact
       </button>
 
-      <motion.button
-        whileTap={{ scale: 0.97 }}
-        onClick={handleSave}
-        className="w-full gradient-hero text-primary-foreground py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
-      >
-        <Save size={18} /> Save Contacts
+      <motion.button whileTap={{ scale: 0.97 }} onClick={handleSave} disabled={saving}
+        className="w-full gradient-hero text-primary-foreground py-3 rounded-xl font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
+        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+        {saving ? "Saving..." : "Save Contacts"}
       </motion.button>
     </div>
   );
