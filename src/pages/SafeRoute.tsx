@@ -5,22 +5,16 @@ import { toast } from "sonner";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Fix default marker icons
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
+L.Icon.Default.mergeOptions({ iconRetinaUrl: markerIcon2x, iconUrl: markerIcon, shadowUrl: markerShadow });
 
-const policeIcon = L.divIcon({ className: "custom-marker", html: '<div style="background:#7c3aed;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)">🏛</div>', iconSize: [28, 28] });
-const hospitalIcon = L.divIcon({ className: "custom-marker", html: '<div style="background:#10b981;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)">🏥</div>', iconSize: [28, 28] });
+const policeIcon = L.divIcon({ className: "", html: '<div style="background:#7c3aed;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)">🏛</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
+const hospitalIcon = L.divIcon({ className: "", html: '<div style="background:#10b981;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)">🏥</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
 
-// Simulated safety points of interest around a location
 const generatePOIs = (lat: number, lng: number) => [
   { type: "police", name: "Police Station", lat: lat + 0.008, lng: lng + 0.005 },
   { type: "police", name: "Traffic Police", lat: lat - 0.006, lng: lng + 0.01 },
@@ -47,6 +41,39 @@ const SafeRoute = () => {
     } catch { return null; }
   };
 
+  const initMap = (fromCoords: [number, number], toCoords: [number, number], score: number) => {
+    if (!mapRef.current) return;
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
+
+    const map = L.map(mapRef.current).fitBounds([fromCoords, toCoords], { padding: [40, 40] });
+    mapInstanceRef.current = map;
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; OpenStreetMap',
+      maxZoom: 19,
+    }).addTo(map);
+
+    L.marker(fromCoords).addTo(map).bindPopup("<b>Start:</b> " + from);
+    L.marker(toCoords).addTo(map).bindPopup("<b>Destination:</b> " + to);
+
+    const routeColor = score >= 80 ? "#10b981" : score >= 60 ? "#f59e0b" : "#ef4444";
+    L.polyline([fromCoords, toCoords], { color: routeColor, weight: 5, opacity: 0.8, dashArray: "10 6" }).addTo(map);
+
+    const pois = generatePOIs((fromCoords[0] + toCoords[0]) / 2, (fromCoords[1] + toCoords[1]) / 2);
+    pois.forEach((poi) => {
+      L.marker([poi.lat, poi.lng], { icon: poi.type === "police" ? policeIcon : hospitalIcon })
+        .addTo(map).bindPopup(`<b>${poi.name}</b>`);
+    });
+
+    L.circle(fromCoords, { radius: 500, color: "#10b981", fillColor: "#10b981", fillOpacity: 0.1, weight: 1 }).addTo(map);
+    L.circle(toCoords, { radius: 500, color: "#10b981", fillColor: "#10b981", fillOpacity: 0.1, weight: 1 }).addTo(map);
+
+    setTimeout(() => map.invalidateSize(), 300);
+  };
+
   const handleSearch = async () => {
     if (!from || !to) return toast.error("Enter both locations");
     setSearching(true);
@@ -57,52 +84,26 @@ const SafeRoute = () => {
       return toast.error("Could not find one or both locations. Try adding city/state name.");
     }
 
-    // Calculate simulated safety score
     const score = Math.floor(70 + Math.random() * 25);
     setSafetyScore(score);
     setSearched(true);
     setSearching(false);
 
-    // Render map
-    setTimeout(() => {
-      if (!mapRef.current) return;
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-      }
-
-      const map = L.map(mapRef.current).fitBounds([fromCoords, toCoords], { padding: [40, 40] });
-      mapInstanceRef.current = map;
-
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '© OpenStreetMap contributors',
-      }).addTo(map);
-
-      // Start and end markers
-      L.marker(fromCoords).addTo(map).bindPopup("<b>Start:</b> " + from);
-      L.marker(toCoords).addTo(map).bindPopup("<b>Destination:</b> " + to);
-
-      // Route line with safety color
-      const routeColor = score >= 80 ? "#10b981" : score >= 60 ? "#f59e0b" : "#ef4444";
-      L.polyline([fromCoords, toCoords], { color: routeColor, weight: 5, opacity: 0.8, dashArray: "10 6" }).addTo(map);
-
-      // Add POIs
-      const pois = generatePOIs((fromCoords[0] + toCoords[0]) / 2, (fromCoords[1] + toCoords[1]) / 2);
-      pois.forEach((poi) => {
-        L.marker([poi.lat, poi.lng], { icon: poi.type === "police" ? policeIcon : hospitalIcon })
-          .addTo(map)
-          .bindPopup(`<b>${poi.name}</b>`);
+    // Wait for React to render the map container, then init
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        initMap(fromCoords, toCoords, score);
+        toast.success("Route calculated! Showing safest path.");
       });
-
-      // Safety zone circles
-      L.circle(fromCoords, { radius: 500, color: "#10b981", fillColor: "#10b981", fillOpacity: 0.1, weight: 1 }).addTo(map);
-      L.circle(toCoords, { radius: 500, color: "#10b981", fillColor: "#10b981", fillOpacity: 0.1, weight: 1 }).addTo(map);
-
-      toast.success("Route calculated! Showing safest path.");
-    }, 100);
+    });
   };
 
   useEffect(() => {
-    return () => { mapInstanceRef.current?.remove(); };
+    return () => { 
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+      }
+    };
   }, []);
 
   return (
@@ -128,10 +129,8 @@ const SafeRoute = () => {
 
       {searched && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-          {/* Live Map */}
-          <div ref={mapRef} className="aspect-[4/3] rounded-2xl overflow-hidden border border-border z-0" style={{ minHeight: 280 }} />
+          <div ref={mapRef} style={{ height: 300, width: "100%" }} className="rounded-2xl border border-border" />
 
-          {/* Legend */}
           <div className="flex gap-3 flex-wrap">
             <span className="flex items-center gap-1.5 text-[10px] font-semibold"><span className="w-3 h-3 rounded-full bg-safe" /> Safe</span>
             <span className="flex items-center gap-1.5 text-[10px] font-semibold"><span className="w-3 h-3 rounded-full bg-warning" /> Medium</span>
@@ -140,7 +139,6 @@ const SafeRoute = () => {
             <span className="flex items-center gap-1.5 text-[10px] font-semibold">🏥 Hospital</span>
           </div>
 
-          {/* Safety Score */}
           <div className={`${safetyScore >= 80 ? "bg-safe/10 border-safe/30" : safetyScore >= 60 ? "bg-warning/10 border-warning/30" : "bg-destructive/10 border-destructive/30"} border rounded-2xl p-4 flex items-center gap-4`}>
             <div className={`w-14 h-14 ${safetyScore >= 80 ? "bg-safe" : safetyScore >= 60 ? "bg-warning" : "bg-destructive"} rounded-2xl flex items-center justify-center`}>
               <Shield size={28} className="text-primary-foreground" />
@@ -151,7 +149,6 @@ const SafeRoute = () => {
             </div>
           </div>
 
-          {/* Nearby Services */}
           <div className="grid grid-cols-2 gap-3">
             {[
               { icon: Building2, label: "2 Police Stations", color: "text-primary" },
